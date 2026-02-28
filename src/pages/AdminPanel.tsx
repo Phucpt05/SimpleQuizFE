@@ -25,7 +25,8 @@ const AdminPanel = () => {
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Quiz Management State
-  const [newQuizData, setNewQuizData] = useState({ title: '', description: '' })
+  const [quizFormData, setQuizFormData] = useState({ title: '', description: '' })
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null)
   const [quizLoading, setQuizLoading] = useState(false)
 
   useEffect(() => {
@@ -65,16 +66,28 @@ const AdminPanel = () => {
     }
   }
 
+  const handleQuizEdit = (quiz: Quiz) => {
+    setEditingQuizId(quiz._id)
+    setQuizFormData({ title: quiz.title, description: quiz.description || '' })
+    window.scrollTo(0, 0)
+  }
+
   const handleQuizSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setQuizLoading(true)
     try {
-      await api.post('/quizzes', newQuizData)
-      setNewQuizData({ title: '', description: '' })
+      if (editingQuizId) {
+        await api.put(`/quizzes/${editingQuizId}`, quizFormData)
+        enqueueSnackbar('Quiz updated!', { variant: 'success' })
+      } else {
+        await api.post('/quizzes', quizFormData)
+        enqueueSnackbar('New Quiz created!', { variant: 'success' })
+      }
+      setQuizFormData({ title: '', description: '' })
+      setEditingQuizId(null)
       fetchQuizzes()
-      enqueueSnackbar('New Quiz created!', { variant: 'success' })
     } catch (err: any) {
-      enqueueSnackbar(err.response?.data?.message || 'Failed to create quiz', { variant: 'error' })
+      enqueueSnackbar(err.response?.data?.message || `Failed to ${editingQuizId ? 'update' : 'create'} quiz`, { variant: 'error' })
     } finally {
       setQuizLoading(false)
     }
@@ -188,7 +201,7 @@ const AdminPanel = () => {
         <div className="col-lg-4 mb-4">
           <div className="card shadow-sm h-100">
             <div className="card-header bg-dark text-white">
-              <h5 className="mb-0">Manage Quizzes</h5>
+              <h5 className="mb-0">{editingQuizId ? 'Edit Quiz' : 'Manage Quizzes'}</h5>
             </div>
             <div className="card-body">
               <form onSubmit={handleQuizSubmit} className="mb-4">
@@ -197,8 +210,8 @@ const AdminPanel = () => {
                     type="text" 
                     className="form-control form-control-sm" 
                     placeholder="Quiz Title" 
-                    value={newQuizData.title}
-                    onChange={(e) => setNewQuizData({...newQuizData, title: e.target.value})}
+                    value={quizFormData.title}
+                    onChange={(e) => setQuizFormData({...quizFormData, title: e.target.value})}
                     required
                   />
                 </div>
@@ -207,13 +220,27 @@ const AdminPanel = () => {
                     className="form-control form-control-sm" 
                     placeholder="Description" 
                     rows={2}
-                    value={newQuizData.description}
-                    onChange={(e) => setNewQuizData({...newQuizData, description: e.target.value})}
+                    value={quizFormData.description}
+                    onChange={(e) => setQuizFormData({...quizFormData, description: e.target.value})}
                   />
                 </div>
-                <button type="submit" className="btn btn-primary btn-sm w-100" disabled={quizLoading}>
-                  {quizLoading ? 'Creating...' : 'Create New Quiz'}
-                </button>
+                <div className="d-flex gap-2">
+                  <button type="submit" className="btn btn-primary btn-sm w-100" disabled={quizLoading}>
+                    {quizLoading ? (editingQuizId ? 'Updating...' : 'Creating...') : (editingQuizId ? 'Update Quiz' : 'Create New Quiz')}
+                  </button>
+                  {editingQuizId && (
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary btn-sm" 
+                      onClick={() => {
+                        setEditingQuizId(null)
+                        setQuizFormData({ title: '', description: '' })
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
               
               <h6>Existing Quizzes</h6>
@@ -223,13 +250,22 @@ const AdminPanel = () => {
                     <div className="text-truncate mr-2">
                       <strong>{quiz.title}</strong>
                     </div>
-                    <button 
-                      className="btn btn-sm btn-link text-danger p-0" 
-                      onClick={() => deleteQuiz(quiz._id)}
-                      title="Delete Quiz"
-                    >
-                      <i className="bi bi-trash">Delete</i>
-                    </button>
+                    <div className="btn-group">
+                      <button 
+                        className="btn btn-sm btn-link text-primary p-0 me-2" 
+                        onClick={() => handleQuizEdit(quiz)}
+                        title="Edit Quiz"
+                      >
+                        <i className="bi bi-pencil">Edit</i>
+                      </button>
+                      <button 
+                        className="btn btn-sm btn-link text-danger p-0" 
+                        onClick={() => deleteQuiz(quiz._id)}
+                        title="Delete Quiz"
+                      >
+                        <i className="bi bi-trash">Delete</i>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
